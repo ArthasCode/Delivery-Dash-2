@@ -8,6 +8,7 @@ TagManager:
   - Costumer
   - Booster
   - WorldCollision
+  - Tree
   layers:
   - Default
   - TransparentFX
