@@ -10,11 +10,11 @@ public class Driver : Agent
 {
     [SerializeField]float currentSpeed;
     [SerializeField]float steerSpeed = 200f;
-    [SerializeField]float boosterSpeed = 20f;
+    [SerializeField]float aditionalBoosterSpeed = 8f;
     [SerializeField]float usualSpeed = 12f;
     [SerializeField]TMP_Text boosterText;
     [SerializeField]EnviromentController enviromentController;
-    [SerializeField]float maxPenalty = 10f;
+    [SerializeField]bool useClosestTargetObservation = true;
 
     private float stepsWithoutPack;
     bool isPackage = false;
@@ -33,7 +33,7 @@ public class Driver : Agent
     private void OnTriggerEnter2D(Collider2D collision) {
         float reward = 10f;
         if(collision.CompareTag("Booster")){
-            currentSpeed = boosterSpeed;
+            currentSpeed = aditionalBoosterSpeed + usualSpeed;
             collision.gameObject.SetActive(false);
 
             boosterText.gameObject.SetActive(true);
@@ -70,7 +70,7 @@ public class Driver : Agent
     }
 
     private void OnCollisionStay2D(Collision2D collision) {
-        float reward = -0.01f / 5f;
+        float reward = -0.1f / 5f;
         if(collision.collider.CompareTag("WorldCollision")){
             currentSpeed = usualSpeed;
             boosterText.gameObject.SetActive(false);
@@ -85,16 +85,18 @@ public class Driver : Agent
     public override void CollectObservations(VectorSensor sensor)
     {
         sensor.AddObservation(isPackage);
-        sensor.AddObservation(currentSpeed / 20f - 1);
-        sensor.AddObservation(transform.eulerAngles.z / 360f);
+        sensor.AddObservation(currentSpeed / (aditionalBoosterSpeed + usualSpeed));
+        sensor.AddObservation(transform.eulerAngles.z / 360f);  
+        if (useClosestTargetObservation) // remember to change 6 space size to 4 space size in behavior parameters
+        {
+            Vector2 closestTarget = GetClosestPackage();
 
-        Vector2 closestTarget = GetClosestPackage();
+            Vector2 dirToTarget = (closestTarget - (Vector2)transform.position).normalized;
+            float distToTarget = Vector2.Distance(transform.position, closestTarget);
 
-        Vector2 dirToTarget = (closestTarget - (Vector2)transform.position).normalized;
-        float distToTarget = Vector2.Distance(transform.position, closestTarget);
-
-        sensor.AddObservation(dirToTarget);       
-        sensor.AddObservation(distToTarget / 108f); 
+            sensor.AddObservation(dirToTarget);  
+            sensor.AddObservation(distToTarget / 108f); 
+        } 
     }
 
 
@@ -138,11 +140,10 @@ public class Driver : Agent
         transform.Translate(0, moveAmount, 0);
         transform.Rotate(0, 0, steerAmount);
 
-        // Change for quadratic function
-        float penaltyForWithoutPackage = MathF.Pow(1.01f, ++stepsWithoutPack) - 1f;
+        // float penaltyForWithoutPackage = MathF.Pow(1.01f ,++stepsWithoutPack) - 1f;
 
-        if (penaltyForWithoutPackage >= maxPenalty) EndEpisode();
-        else AddReward(-penaltyForWithoutPackage);
+        // if (penaltyForWithoutPackage >= maxPenalty) EndEpisode();
+        // else AddReward(-penaltyForWithoutPackage);
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
